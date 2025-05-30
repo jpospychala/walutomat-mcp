@@ -1,0 +1,25 @@
+{
+  "name": "walutomat-mcp-server",
+  "version": "1.0.0",
+  "description": "Walutomat MCP Server - Model Context Protocol",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "mcp",
+    "walutomat",
+    "api",
+    "model-context-protocol",
+    "fx"
+  ],
+  "author": "Currency One SA",
+  "license": "MIT",
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.12.1",
+    "zod": "^3.25.36"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.27",
+    "typescript": "^5.8.3"
+  }
+}
