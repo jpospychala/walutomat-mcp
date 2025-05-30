@@ -1,0 +1,2774 @@
+swagger: '2.0'
+info:
+  version: '2.0.0'
+  title: 'Walutomat API'
+  x-logo:
+    url: "walutomat_logo.png"
+    backgroundColor: "#FFFFFF"
+    altText: "Walutomat"
+
+  description: |
+    [Other versions](https://www.walutomat.pl/api/versions)
+    # Overview
+
+    ## Introduction
+
+    The Walutomat API is used to manage Walutomat multicurrency wallet from third party IT systems.
+    The API is built using RESTful endpoints and standard HTTP verbs.
+    JSON is returned on all our API responses, with a consistent structure for all messages.
+    Each response contains success flag and in case of failure, error section contains information necessary to investigate error reason.
+    Authentication to the API is performed via token-based auth (API key). Additionally sensitive operations like ordering money transfer must be signed with the private key. Further infromation on a topic of authentication and authorisation may be found in [dedicated section](#section/Usage/Authentication).
+    All API requests must be made over HTTPS. Calls made over plain HTTP will fail.
+    All requests must use TLS 1.1 or above.
+
+    ## Getting started
+
+    ### Samples
+
+    Check for sample code demonstrating usage of Walutomat API in [this Github repository](https://github.com/Currency-One/api-examples)
+
+    ### Sandbox
+
+    We prepared sandbox to ease integration with Walutomat.
+    Developers may learn Walutomat API and test integration even before business arrangments are finalized.
+    Sandbox is best place to test changes first as well.
+    Sandbox URL: `walutomat.dev`
+    To request sandbox account, please contact us: api@walutomat.pl
+
+    ### First steps
+
+    Follow this simple step-by-step guide to get started using the Walutomat API.
+
+    #### Generate your public/private key pair
+
+    Generate a pair of RSA keys with key size of 4096 bits, here are examples for different operating systems:
+
+    For Linux:
+    ```sh
+    $ openssl genrsa -out ./private.key 4096
+    $ openssl rsa -in ./private.key -pubout -out ./public.key
+    ```
+
+    For Windows:
+    - Download and install PuTTY,
+    - Use PuTTYgen to generate RSA key, make sure you change "Number of bits in a generated key" to 4096,
+    - After key is generated in "Actions" section, click "Save public key", as it saves key in RSA PEM format,
+    - "Save private key" as well and store it somewhere.
+
+    Generated key should look as follows:
+
+    ```
+    -----BEGIN PUBLIC KEY-----
+    MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAucK1TudLBMAF0GjGII6h
+    25k1kh0MBCNjNnVBWyOwc06ivr1Xg5U4EBXJqi4HQowhcOKHNVusL1KgsbRqwNvR
+    fGwXUgfp9CNeeKKZrgo98+0hUcR+wrR59F2dSnoQ4CWUHuUk5Tinj7mh2+uzu5BF
+    mJefy5d1Mj81ANbpwwETeo/OSK+3++h0ac+kfdokE57CjurnD3b5AMnQ6RLtZm2O
+    GnEtwWymxXLO84tdRYo/e/Rbg9/yTmDhpTDcexJDd1f5O6814BxL4TFe/6AnFa2y
+    nm+Ot9Sxa01OOEzHDQW6CK3x5BbH3rv6/5UAKoliWyTUcyDvIlikiO0eQPlHk/YP
+    W0dYGqFlSkdc8xDJByhiDZWZlnNUrKiLaJw/O6oybqme9+NnghiuQ8Ck3VO8ESpJ
+    Q90TV3Ffl+TkWoULKF/9iK37szwV57ogafgX0YimN+qkQjLPr/9s/PQxDLxd/JKq
+    WM4MTEkNxsE9Cw5r76Xkex3Z6X0YF89UryjFIuTi2+U5yow6gF6uBKcD2tYzMmdx
+    orCRtNSUrueH56+c7axDtIdoX0GGvCWIDT343I96Di2ZDKo8Lxx11vTNjLokJaDj
+    IQz12YrqNnKtAjqmDO+Y4mAU7qbFgiBGIT7R1JLoemiNhLf7UdX9g1/0AOyGvDxp
+    Pe62GHE5pTQ74mf5jxWseskCAwEAAQ==
+    -----END PUBLIC KEY-----
+    ```
+
+    #### Upload your public RSA key and reveal your API key
+
+    1. Log into the Walutomat User Panel - [live production](https://user.walutomat.pl) or [sandbox environment](https://user.walutomat.dev) accordingly
+    2. Go to section "Additional services" > "API Key" (contact our Customer Service if there is no API Key section in the Additional services menu)
+    3. Using "Your API Keys v.2" section, add new key and paste the content of the `public.key` file
+    4. Store the API key in a safe place. You will be able to view it later in the User Panel using additional authentication.
+    5. Contact our Customer Service to setup your API Key permissions.
+
+    ### Simple API usage scenario
+    Now, as you have Walutomat API activated, your API key generated and probably your public key uploaded in the user panel, you can try first calls to API endpoints.
+    We suggest you to try example provided below.
+    Please note you may use sandbox for first trials (recommended). If this is the case, please change production URL `api.walutomat.pl` to sandbox `api.walutomat.dev` in samples below.
+
+
+    #### Example, step 1: learn current exchange rate
+
+    1. Replace `API_KEY` and `path/to/private.key` in the command below
+    2. Query the following endpoint to learn current exchange rate offered by Currency One
+    3. You should see the exchange rate in the response; note down the `ts` attribute of the response, you will need it in the next step.
+
+    ```sh
+    $ timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    $ endpoint="/api/v2.0.0/direct_fx/rates?currencyPair=EURPLN"
+    $ body=""
+    $ signature=$(echo -n "$timestamp$endpoint$body" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64)
+    $ curl -i \
+      -H "X-API-Key: API_KEY" \
+      -H "X-API-Signature: $signature" \
+      -H "X-API-Timestamp: $timestamp" \
+      -X GET "https://api.walutomat.pl$endpoint"
+    ```
+
+    > Example response:
+
+    ```json
+     {
+        "success": true,
+        "result": {
+          "ts": "2018-03-27T09:58:06.945Z",
+          "currencyPair": "EURPLN",
+          "buyRate": "4.1234",
+          "sellRate": "4.0987"
+        }
+     }
+    ```
+
+    #### Example, step 2: order currency exchange
+
+    Knowing current exchange rate you are now ready to order currency exchange accepting received exchange rate. Notice the `dryRun` flag. Set `dryRun=true` to test the action (no actual exchange would take place).
+
+    1. Use the command below replacing `API_KEY` and `/path/to/private.key`
+    2. Replace `exchange_rate_ts` with the `ts` from the previous step.
+
+    ```sh
+    $ timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+    $ endpoint="/api/v2.0.0/direct_fx/exchanges"
+    $ body="dryRun=false&submitId=93a68f4d-ce40-40be-adac-3bb4d4b5e392&currencyPair=EURPLN&buySell=BUY&volume=999.00&volumeCurrency=EUR&ts=exchange_rate_ts"
+    $ signature=$(echo -n "$timestamp$endpoint$body" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64)
+    $ curl -i \
+      -d "$body" \
+      -H "X-API-Key: API_KEY" \
+      -H "X-API-Signature: $signature" \
+      -H "X-API-Timestamp: $timestamp" \
+      -H "Content-Type: application/x-www-form-urlencoded" \
+      -X POST "https://api.walutomat.pl$endpoint"
+    ```
+
+    > Example response:
+
+    ```json
+      {
+        "success": true,
+        "duplicate": false,
+        "result": {
+          "exchangeId": "2607f83b-3a60-4097-912c-72e1cf7a0085"
+        }
+      }
+      ```
+
+    **Note**: There are two models of currency exchange offered by Currency One via API: direct currency exchange with Currency One (endpoints in `direct_fx` namespace), used in this demonstration, and P2P exchange on Walutomat market (endpoints in `market_fx` namespace) - see further sections to learn more about those 2 models and acting on Walutomat market via API.
+
+    Congratulations! You have performed your first currency exchange with Walutomat API.
+
+    ### Next steps
+
+    Now that you have performed your first currency exchange, you can learn more about the rest of the API.
+
+    #### Learn about direct vs market exchange
+
+    Currency One offers two types of currency exchange. Learn about the [difference](#section/Overview/Currency-exchange-models) and pick the right one for your system/business.
+
+    #### Submit new currency exchange order to Walutomat market
+
+    Now that you have performed your first direct currency exchange with Currency One, you can try the market model of currency exchange by submitting new [exchange order](#operation/newOrder) to Walutomat market. In this scenario Currency One is only platform operator and orders are executed if/when matching opposite order is available on the market.
+
+    #### Order transfer from Walutomat multicurrency wallet
+
+    After currency exchange you may want to transfer exchanged currency from Walutomat multicurrency wallet to your bank account or transfer it to third party. This operation can be requested via API as well and you use [transfer](#operation/newTransferIban) endpoint to achieve this.
+
+    ## Currency exchange models
+
+    The Walutomat API offers two different currency exchange types: direct and market.
+    A direct exchange is standard currency exchange with Currency One and requires to accept exchange rate offered by Currency One. The exchange rate is valid 10 minutes from its publication (publication timestamp is stored in `ts` attribute).
+    A market exchange uses Walutomat market, where all participants may submit their currency exchange offers (bids and asks). Walutomat API provides endpoints to act on this market, by learning current best offers available on the market, submitting new exchange order with limit price to Walutomat market, checking order execution (whether and how much of the offered currency were exchanged so far), withdrawing own offers from the market.
+    To distinguish API endpoints related to different  currency exchange models, endpoints dedicated to direct exchange with Currency one are located in `direct_fx/` namespace while endpoints dedicated to P2P currency exchange on Walutomat market are located in `market_fx/` namespace.
+
+    ### Which type of exchange do I need?
+
+    It depends upon your business model ad your system requirements. Note that in direct exchange model, exchange rate is known a priori and could be freezed up to ten minutes while in market exchange situation on the market changes dynamically. On the other hand, API to Walutomat market allows to design and automate different trading strategies that may perform well and significantly outrank results that would be achieved in direct exchange scenario.
+
+    ## Backwards compatibility
+
+    The following changes are considered backwards compatible:
+    * Adding new API endpoints
+    * Adding new properties to the responses from existing API endpoints
+    * Adding optional request parameters to existing API endpoints
+    * Altering the format or length of IDs
+    * Altering the message attributes returned by validation failures or other errors
+    * Reordering properties returned from existing API endpoints
+
+    ## Changelog
+
+    Release date | Description
+    ------------ | -----------
+    2022-10-25 | Added endpoint GET /account/history/mt940 for mt940 export statement
+    2022-03-21 | Added transferPurpose and sourceOfIncome optional params to /transfer/(non)iban endpoints
+    2021-12-13 | Added operationDetailedType parameter to /account/history endpoint
+    2021-08-24 | Added endpoint GET /transfer to learn transfer status and details
+    2018-XX-XX | Added endpoints to history of operations on multicurrency wallet (payins, payouts, currency exchanges)
+    2018-XX-XX | Release API version 2.0.0
+
+    Documentation for earlier versions - see [v1](https://api.walutomat.pl/v1/)
+
+    # Usage
+
+    ## Authentication
+
+    All API requests must be made over HTTPS. Any requests made over HTTP will fail.
+    The API uses token-based authentication. You will be provided with a API key which must be included in the header under X-API-Key attributes of all requests made to the API that requires authentication.
+    Additionally sensitive requests must be signed with RSA key with key size of 4096 bits and in such cases request signature shall be included in the request header in X-API-Signature attribute. Check specific endpoints documentation to learn given endpoint requirements.
+
+    <!-- ReDoc-Inject: <security-definitions> -->
+
+    ## Errors
+
+    Responses contain `success` flag and `error` object.
+    If `success` attribute contains `false`, `error` object is not empty and shall be examined to learn error reason and details.
+
+    ### Error object
+
+    > Error object example:
+
+    ```json
+     {
+        "success": false,
+        "errors": [
+          {
+            "key": "INSUFFICIENT_FUNDS",
+            "description": "Requested payout exceeds current wallet balance {walletBalance}",
+            "trace": "",
+            "errorData": [
+              {
+                "key": "walletBalance",
+                "value": "3.14 EUR"
+              }
+            ]
+          }
+        ]
+     }
+
+    ```
+
+    Error object always contains error `key` and error `description` in English. May contain key-value structure `errorData` with additional values that may be referred to in `description`. Error object may contain `trace` information. When unspecified error occurred, the trace can help to track the problem. You may be asked to deliver received response with trace content to our support team.
+
+
+    **Note**: It is assumed that all API endpoints always responds with 200 code and valid json success attribute. No response received or response with other code shall not be treated as confirmation of request rejection. In such cases recommended approach is to repeat request *with unchanged submitId*. See also Duplicates section.
+
+    ![API response handling diagram](handling_responses.png)
+
+
+    ## Pagination
+
+    Requests that return multiple items, e.g. `GET /account/history`, will be paginated to 100 items by default. You can access further items using the `?continueFrom` parameter. You can change default page size with `?volume` parameter. Items could be sorted from the newest created (default) or in reverse order by setting `?sortOrder` parameter to `ASC`.
+
+    ## Duplicates
+
+    You can safely repeat submitting requests, especially when you are unsure whether previous attempt reaches Walutomat or you did not manage to process Walutomat API response.
+
+    **Note**: When repeating request make sure to provide same request id (`submitId`)!
+
+    When Walutomat API receives request with same `submitId` parameter value again, it will not perform requested operation one more time, but simply repeats last response, this time with `duplicate` attribute set to `true`.
+
+    ## Testing
+
+    ### Dry run mode
+
+    All requests that may incur charges or otherwise may affect multicurrency wallet balance (like currency exchange, payout) are equipped with `dryRun` parameter. When set to `true` dry run mode is on. In this mode request is just validated but not executed.
+
+    #### Why use a `dryRun` flag?
+
+    The key difference, for dryRun requests:
+    * requests does not affect money, no operation on multicurrency wallet is performed, no charges are incurred
+    * still, requests correctness is validated, possibility to perform request operation is verified and additional information is returned (e.g. the cost tested operation may incur)
+
+    The main reasons for using dry run are therefore to:
+    * Verify your system have network connectivity with the Walutomat API
+    * Verify you are posting all the required data in the right format to the Walutomat API
+    * Verify you are handling the Walutomat API responses correctly
+
+    but also to:
+    * Verify whether requested operation can be performed (e.g. indicated currencies are supported or IBAN account number is valid)
+    * Learn the cost of the operation if it would be requested not in dry run mode (i.e. you can use it to determine payout cost)
+
+    ### Testing with sandbox
+
+    Following tools are available on sandbox environment only:
+
+    #### Payins (incoming transfer) simulator
+
+    First log in to your sandbox user panel, then type in URL: [https://api.walutomat.pl/v1/](https://api.walutomat.pl/v1/)
+    Select payin parameters - executed pamyent will affect account balance and history of operations - usable to test `/account/history` endpoint response.
+
+    #### Payout (outgoing transfer) status simulator
+
+    This is a method to test 'R' events (Rejects, Returns) and possible states in `/transfer` endpoint response.
+    When submitting sandbox transfer request with `transfer/iban/sepa` endpoint enter into transfer title following keywords to obtain selected transfer status:
+    * TESTREJECT
+    * TESTRETURN
+    * TESTSETTLE
+
+
+externalDocs:
+  description: Find out more about Walutomat
+  url: http://walutomat.pl/en
+
+
+schemes:
+ - https
+
+securityDefinitions:
+  api_key:
+    type: apiKey
+    name: X-API-Key
+    in: header
+
+######## DOC CHAPTERS ############
+x-tagGroups:
+  - name: Endpoint reference
+    tags:
+      - account
+      - payout
+      - direct_fx
+      - market_fx
+
+tags:
+- name: account
+  description: Account balance and history
+  x-displayName: Account information
+
+- name: payout
+  description: |
+    Payout from wallet
+
+  x-displayName: Payouts
+
+- name: direct_fx
+  description: Exchange currency with Currency One
+  x-displayName: Direct FX
+
+- name: market_fx
+  description: Endpoints dedicated to P2P currency exchange at Walutomat stock exchange (managing orders and trace order execution)
+  x-displayName: Market (P2P) FX
+
+basePath: "/api/v2.0.0"
+
+########## DEFINITIONS #############
+definitions:
+  GenericResponse:
+    type: object
+    properties:
+      success:
+        type: boolean
+        description: True when exchange request was valid and succesfully handled, if false investigate errors table for details
+      errors:
+        type: array
+        items:
+          $ref: '#/definitions/ErrorType'
+    required:
+      - success
+
+  ErrorType:
+    type: object
+    properties:
+      key:
+        type: string
+        description: Error key
+        example: INSUFFICIENT_FUNDS
+        enum:
+        - AMOUNT_TOO_SMALL
+        - API_DISABLED
+        - COUNTRY_NOT_SUPPORTED
+        - CURRENCY_NOT_SUPPORTED
+        - INSUFFICIENT_FUNDS
+        - INVALID_ACCOUNT_NUMBER
+        - INVALID_API_KEY
+        - INVALID_ARGUMENTS
+        - INVALID_SIGNATURE
+        - MISSING_API_KEY
+        - MISSING_AUTH_ROLE
+        - MISSING_PUBLIC_KEY
+        - MISSING_SIGNATURE
+        - NOT_AUTHORIZED
+        - NO_RATE_FOR_PAIR
+        - OTHER
+        - PAYOUT_LIMIT_EXCEEDED
+        - TRANSACTION_NOT_FOUND
+        - SOURCE_OF_INCOME_REQUIRED
+        - PURPOSE_REQUIRED
+        - TITLE_REQUIRED
+        - AMOUNT_MUST_BE_INTEGER
+      description:
+        type: string
+        description: Descriptive error message with possible references to errorData entries
+        example: Requested payout exceeds current wallet balance {walletBalance}
+      errorData:
+        type: array
+        items:
+          $ref: '#/definitions/ErrorData'
+    required:
+      - key
+      - description
+      - errorData
+
+  ErrorData:
+    required:
+        - key
+        - value
+    properties:
+      key:
+        type: string
+        description: Error data entry key
+        example: walletBalance
+      value:
+        type: string
+        description: Error data entry value
+        example: 3.14 EUR
+
+  DuplicatableResponse:
+    type: object
+    required:
+      - duplicate
+    properties:
+      duplicate:
+        type: boolean
+        description: True when submitId was used before, in such a case no new operation like exchange or payout is performed. It is safe to repeat request e.g. in cases when response from first attempt was not received or processed
+
+  MarketCurrency:
+    type: string
+    enum: &MarketCurrency
+    - EUR
+    - GBP
+    - USD
+    - CHF
+    - PLN
+    - CZK
+    - DKK
+    - NOK
+    - SEK
+
+  NonibanTransfersCurrency:
+    type: string
+    enum: &NonibanTransfersCurrency
+    - EUR
+    - USD
+    - AUD
+    - CAD
+    - HKD
+    - NZD
+    - SGD
+    - GBP
+    - CHF
+    - CNY
+    - JPY
+    - CZK
+    - DKK
+    - NOK
+    - SEK
+    - PLN
+    - TBD
+
+  MarketPair:
+    type: string
+    enum: &MarketPair
+    - EURGBP
+    - EURUSD
+    - EURCHF
+    - EURPLN
+    - GBPUSD
+    - GBPCHF
+    - GBPPLN
+    - USDCHF
+    - USDPLN
+    - CHFPLN
+    - EURSEK
+    - EURNOK
+    - EURDKK
+    - EURCZK
+    - CZKPLN
+    - DKKPLN
+    - NOKPLN
+    - SEKPLN
+    - AUDPLN
+    - BGNPLN
+    - CADPLN
+    - CNYPLN
+    - HKDPLN
+    - HUFPLN
+    - ILSPLN
+    - JPYPLN
+    - MXNPLN
+    - NZDPLN
+    - RONPLN
+    - SGDPLN
+    - TRYPLN
+    - ZARPLN
+    - EURAUD
+    - EURBGN
+    - EURCAD
+    - EURCNY
+    - EURHKD
+    - EURHUF
+    - EURILS
+    - EURJPY
+    - EURMXN
+    - EURNZD
+    - EURRON
+    - EURSGD
+    - EURTRY
+    - EURZAR
+
+  AnyCurrency:
+    type: string
+    enum: &AnyCurrency
+    - AUD
+    - BGN
+    - CAD
+    - CHF
+    - CNY
+    - CZK
+    - DKK
+    - EUR
+    - GBP
+    - HKD
+    - ILS
+    - JPY
+    - MXN
+    - NOK
+    - NZD
+    - PLN
+    - RON
+    - SEK
+    - SGD
+    - TRY
+    - USD
+    - ZAR
+    - HUF
+
+  NewOrderResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - $ref: '#/definitions/DuplicatableResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+          - orderId
+          properties:
+            orderId:
+              type: string
+              description: Identifier of the exchange order (generated by server, this is not `submitId`) or empty string when `dryRun=true`.
+              example: 2607f83b-3a60-4097-912c-72e1cf7a0085
+
+  ExchangeResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - $ref: '#/definitions/DuplicatableResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+          - exchangeId
+          properties:
+            exchangeId:
+              type: string
+              description: Identifier of the exchange (generated by server, this is not `submitId`) or empty string when `dryRun=true`.
+              example: 2607f83b-3a60-4097-912c-72e1cf7a0085
+
+  NewTransferResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - $ref: '#/definitions/DuplicatableResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          description: Container for transfer result
+          required:
+          - transferId
+          - feeAmount
+          - feeCurrency
+          - transferType
+          properties:
+            transferId:
+              type: string
+              description: Identifier of the transfer (generated by server, this is not `submitId`) or empty string when `dryRun=true`.
+              example: 2b5121cb-2b38-4fd8-be34-0aac4cf96c8d
+            feeAmount:
+              type: string
+              description: Fee/commission amount applicable to given transfer
+              example: "3.00"
+            feeCurrency:
+              type: string
+              description: Fee/commission currency (ISO currency code)
+              example: "PLN"
+              enum:
+              - EUR
+              - PLN
+            transferType:
+              type: string
+              description: Used transfer type
+              example: "SEPA"
+              enum:
+              - SEPA
+              - SEPA INSTANT
+              - SWIFT SHA TODAY
+              - SWIFT SHA SPOT
+              - SWIFT OUR TODAY
+              - DOMESTIC
+              - DOMESTIC EXPRESS
+              - LOCAL
+              - INTERNAL
+
+  TransferResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+            - transferId
+            - responseTs
+            - transferStatus
+          properties:
+            transferId:
+              type: string
+              description: Identifier of the transfer (generated by Walutomat)
+              example: 2b5121cb-2b38-4fd8-be34-0aac4cf96c8d
+            submitId:
+              type: string
+              description: Identifier of client request that involves given wallet balance change (`submitId` of client API request when transfer were ordered via the API channel)
+              example: "916f1f98-01f6-412a-85e7-2482f1f4c112"
+            responseTs:
+              type: string
+              description: Timestamp of generated response, as transfer status may change in time
+              example: "2018-03-27T09:58:06.945Z"
+            transferStatus:
+              type: string
+              description: |
+                Current transfer status:
+                * REQUEST_RECEIVED - Walutomat has received client payment order and assigned uniquie transfer ID to it
+                * SETTLED - transfer is setttled, i.e. either Walutomat has received SETTLED status directly from payment system or Walutomat has detected outgoing operation on his bank account related to the client payment order
+                * REJECTED - Walutomat was unable to succesfully place transfer in the payment system (or in the banks systems participating in given transaction) and funds were credited back to client Walutomat wallet
+                * RETURNED - Walutomat has received return transaction to given and credited it to client Walutomat wallet
+              example: "SETTLED"
+              enum:
+              - REQUEST_RECEIVED
+              - SETTLED
+              - REJECTED
+              - RETURNED
+            submittedTs:
+              type: string
+              description: Timestamp indicating when Walutomat received transfer order from client (either via API or user panel)
+              example: "2018-03-27T09:58:06.945Z"
+            settledTs:
+              type: string
+              description: Timestamp indicating when SETTLED status was achieved (if already achieved)
+              example: "2018-03-27T09:58:06.945Z"
+            returnedTs:
+              type: string
+              description: Timestamp indicating when RETURNED status was achieved (if already achieved)
+              example: "2018-03-27T09:58:06.945Z"
+            currency:
+              type: string
+              description: Transfer currency ISO currency code
+              enum: *AnyCurrency
+            volume:
+              type: string
+              description: Transfer amount
+              example: "99.00"
+            transferTitle:
+              type: string
+              description: Transfer title
+            recipientAccount:
+              type: string
+              description: The beneficiary (recipient) account, as entered in the transfer order
+            recipientName:
+              type: string
+              description: The beneficiary (recipient) name, as entered in the transfer order
+            returnReason:
+              type: string
+              description: Information why transfer has been returned
+              example: "The account is closed"
+
+  OrderResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          $ref: '#/definitions/OrderDetails'
+
+  OrdersResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/definitions/OrderDetails'
+
+  OrderDetails:
+    type: object
+    required:
+      - orderId
+      - submitId
+      - submitTs
+      - updateTs
+      - status
+      - completion
+      - currencyPair
+      - buySell
+      - volume
+      - volumeCurrency
+    properties:
+      orderId:
+        type: string
+        description: Unique order identifier assigned by market operator's system
+        example: "2035e361-e672-457a-9c3c-0e86e5ff54d6"
+      submitId:
+        type: string
+        description: Unique order identifier assigned by client system submitting new order. GUID or UUID highly advised
+        example: "916f1f98-01f6-412a-85e7-2482f1f4c112"
+      submitTs:
+        type: string
+        description: Timestamp of order, as registered during order request acceptance
+        example: "2018-02-02T10:06:01.111Z"
+      updateTs:
+        type: string
+        description: Timestamp of last order update, such as status change or ecution progress update
+        example: "2018-02-02T10:06:01.396Z"
+      status:
+        type: string
+        description: Order status, ACTIVE when still active on market
+        example: "ACTIVE"
+        enum:
+          - ACTIVE
+          - CLOSED
+      completion:
+        type: number
+        description: Percentage of executed order amount to total order volume, 100 when fullye executed
+        example: 67
+      currencyPair:
+        type: string
+        description: Currency pair - base currency and counter currency
+        example: EURPLN
+      buySell:
+        type: string
+        description: BUY or SELL order
+        enum:
+        - BUY
+        - SELL
+      volume:
+        type: string
+        description: Order volume, order limit (maximum amount of currency to be bought/sold depending on buySell attribute)
+        example: "999.00"
+      volumeCurrency:
+        $ref: '#/definitions/MarketCurrency'
+      limitPrice:
+        type: string
+        description: Maximum rate to buy currency at in case of BUY order, minimum rate to sell currency at in case of SELL order
+        example: "4.2321"
+      soldAmount:
+        type: string
+        description: Amount of currency sold so far within this order
+        example: "999.00"
+      soldCurrency:
+        $ref: '#/definitions/MarketCurrency'
+      boughtAmount:
+        type: string
+        description: Amount of currency bought so far within this order. Commission is not deducted, amount deposited to customer wallet is boughtAmount - commissionAmount
+        example: "999.00"
+      boughtCurrency:
+        $ref: '#/definitions/MarketCurrency'
+      commissionAmount:
+        type: string
+        description: Commission for fx order execution charged by platform operator so far
+        example: "9.00"
+      commissionCurrency:
+        $ref: '#/definitions/MarketCurrency'
+      commissionRate:
+        type: string
+        description: Commission rate applicable to this order
+        example: "0.0020"
+
+  FxRateResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+            - ts
+            - currencyPair
+            - buyRate
+            - sellRate
+          properties:
+            ts:
+              type: string
+              description: This is an identifier of the rate, you will reference the rate by this value, this is also timestamp of the currency quote
+              example: "2018-03-27T09:58:06.945Z"
+            currencyPair:
+              type: string
+              description: Currency pair, i.e. base currency and counter currency
+              example: EURPLN
+            buyRate:
+              type: string
+              description: This is a rate you can buy currency at, so at this rate Currency One sells
+              example: "4.1234"
+            sellRate:
+              type: string
+              description: This is a rate you can sell  scurrency at, so at this rate Currency One buys
+              example: "4.0987"
+
+  BestOffersResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+            - ts
+            - currencyPair
+            - bids
+            - asks
+          properties:
+            ts:
+              type: string
+              description: timestamp of the snapshot
+              example: "2018-04-29T09:48:37.122Z"
+            currencyPair:
+              type: string
+              description: Currency pair, i.e. base currency and counter currency
+              example: EURPLN
+            bids:
+              type: array
+              description: List of 10 best bid offers (e.g. in EURPLN offers of buying EUR paid in PLN). List could be shorter than 10 in rare situation of fewer than 10 bids in given currency pair on Walutomat stock exchange
+              items:
+                $ref: '#/definitions/BidAsk'
+            asks:
+              type: array
+              description: List of 10 best ask offers (e.g. in EURPLN offers of selling EUR paid in PLN). List could be shorter than 10 in rare situation of fewer than 10 asks in given currency pair on Walutomat stock exchange
+              items:
+                $ref: '#/definitions/BidAsk'
+
+  BidAsk:
+    required:
+      - price
+      - volume
+      - valueInOppositeCurrency
+    properties:
+      price:
+        type: string
+        description: Price of the offer(s), 4 decimal places precision, e.g. if pair is EURPLN price 4.3518 means that 1 EUR is offered for 4.3518 PLN
+        example: 4.3518
+      volume:
+        type: string
+        description: Volume, quantity of offered currency, e.g. if pair is EURPLN this value represents quantity of EUR offered
+        example: 962.65
+      valueInOppositeCurrency:
+        type: string
+        description: Offer(s) amount, that is price * volume, e.g. if it is EURPLN this value represents offer value in PLN
+        example: 4189.27
+
+  BestOffersDetailedResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: object
+          required:
+            - ts
+            - currencyPair
+            - bids
+            - asks
+          properties:
+            ts:
+              type: string
+              description: timestamp of the snapshot
+              example: "2018-04-29T09:48:37.122Z"
+            currencyPair:
+              type: string
+              description: Currency pair, i.e. base currency and counter currency
+              example: EURPLN
+            bids:
+              type: array
+              description: List of 10 (or itemLimit) best bid offers (e.g. in EURPLN offers of buying EUR paid in PLN). List could be shorter than 10 (or itemLimit) in rare situation of Walutomat stock exchange having fewer bids in given currency pair
+              items:
+                $ref: '#/definitions/BidAskDetailed'
+            asks:
+              type: array
+              description: List of 10 (or itemLimit) best ask offers (e.g. in EURPLN offers of selling EUR paid in PLN). List could be shorter than 10 (or itemLimit) in rare situation of Walutomat stock exchange having fewer asks in given currency pair
+              items:
+                $ref: '#/definitions/BidAskDetailed'
+
+  BidAskDetailed:
+    allOf:
+      - $ref: '#/definitions/BidAsk'
+      - type: object
+        required:
+          - quotes
+        properties:
+          includesOwn:
+            type: boolean
+            description: Either true or not defined. True when one or more offers of this price on this currency pair has been placed by the owner of the API key used to sign the request, otherwise not defined.
+            example: true
+          quotes:
+            type: array
+            description: List of individual offers of this price on this currency pair.
+            items:
+                $ref: '#/definitions/Quote'
+
+  Quote:
+    required:
+      - volume
+      - valueInOppositeCurrency
+      - ts
+    properties:
+      ts:
+        type: string
+        description: Time of the offer's placement.
+        example: 2017-12-16T21:01:56.513Z
+      volume:
+        type: string
+        description: Volume, quantity of offered currency, e.g. if pair is EURPLN this value represents quantity of EUR offered
+        example: 962.65
+      valueInOppositeCurrency:
+        type: string
+        description: Offer's amount, that is price * volume, e.g. if it is EURPLN this value represents offer value in PLN
+        example: 4189.27
+      own:
+        type: boolean
+        description: Either true or not defined. Indicates whether the offer has been placed by the owner of the API key used to sign the request. Otherwise not defined.
+        example: true
+      orderId:
+        type: string
+        description: Unique order identifier assigned by market operator's system. Exists only if the offer has been placed by the owner of the API key used to sign the request. Otherwise not defined.
+        example: 2607f83b-3a60-4097-912c-72e1cf7a0085
+
+  BalanceResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/definitions/BalanceItem'
+
+  BalanceItem:
+    type: object
+    required:
+      - currency
+      - balanceTotal
+      - balanceAvailable
+      - balanceReserved
+    properties:
+      currency:
+        type: string
+        description: ISO currency code. Consult business documentation and agreement to determine which currencies are provided to you.
+        enum: *AnyCurrency
+      balanceTotal:
+        type: string
+        description: Account balance (sum of available and blocked sources)
+        example: "123.00"
+      balanceAvailable:
+        type: string
+        description: Balance of available sources on wallet
+        example: "99.00"
+      balanceReserved:
+        type: string
+        description: Balance of blocked sources on wallet. Common reason are sources blocked to secure order execution on currency stock exchange or sources blocked for ordered and not yet executed money transfer.
+        example: "24.00"
+
+  HistoryMt940Response:
+    allOf:
+      - $ref: '#/definitions/GenericResponse'
+      - type: object
+        properties:
+          result:
+            type: string
+
+  HistoryResponse:
+    allOf:
+    - $ref: '#/definitions/GenericResponse'
+    - type: object
+      properties:
+        result:
+          type: array
+          items:
+            $ref: '#/definitions/HistoryItem'
+
+  HistoryItem:
+    type: object
+    required:
+      - historyItemId
+      - operationType
+      - operationDetailedType
+      - ts
+      - currency
+      - operationAmount
+      - balanceAfter
+      - operationDetails
+    properties:
+      historyItemId:
+        type: integer
+        description: ID of the history item
+        example: 10003
+      operationType:
+        type: string
+        description: "Type of operation. Walutomat API distiguishes high level type of operations: payins, payouts from wallet, currency exchanges made in one of two models, commissions and fees, other operations not fitted to any of group mentioned earlier."
+        enum:
+          - PAYIN
+          - PAYOUT
+          - COMMISSION
+          - DIRECT_FX
+          - MARKET_FX
+          - TRANSFER
+          - OTHER
+      operationDetailedType:
+        type: string
+        description: More specific operation type.
+        enum:
+          - PAYIN
+          - PAYIN_FEE
+          - PAYOUT
+          - PAYOUT_FEE
+          - PAYOUT_RETURN
+          - PAYOUT_FEE_RETURN
+          - PAYOUT_POST_FACTUM
+          - CASH_PAYOUT
+          - CASH_PAYOUT_FEE
+          - CASH_PAYOUT_RETURN
+          - PAYIN_P24
+          - PAYIN_P24_FEE
+          - PAYIN_PAYPAL
+          - PAYIN_PAYPAL_FEE
+          - MARKET_FX
+          - MARKET_FX_FEE
+          - DIRECT_FX
+          - CHARGE_COMPENSATION
+          - CUSTOMER_PROFIT
+          - WT_PAY
+          - INTERNAL
+          - MONTHLY_FEE
+          - OTHER
+      ts:
+        type: string
+        description: Timestamp of operation
+        example: "2018-03-27T09:58:06.945Z"
+      currency:
+        type: string
+        description: ISO currency code. Consult business documentation and agreement to determine which currencies are provided to you.
+        enum: *AnyCurrency
+      operationAmount:
+        type: string
+        description: Amount of currency credited or debited to wallet account in given currency. In case of debit operations, negaive sign is used.
+        example: "-999.00"
+      balanceAfter:
+        type: string
+        description: Account balance after this operation. Note that in same cases wallet accounts may have negative balance (debit)
+        example: "123.00"
+      transactionId:
+        type: string
+        description: Identifier of Walutomat API transaction that results in account balance change. Please note that one transaction may affect multiple wallets more than one time, so this identifier may be identical in more than one wallet history item. E.g. exchange transaction affect at least 2 wallets (buyer and seller) in 2 currencies (bought and sold)
+        example: "2035e361-e672-457a-9c3c-0e86e5ff54d6"
+      submitId:
+        type: string
+        description: Identifier of client request that involves given wallet balance change, assigned by client system submitting new request. Not present when given wallet balance change is not result of client request submitted by Walutomat API.
+        example: "916f1f98-01f6-412a-85e7-2482f1f4c112"
+      correctingEntry:
+        type: boolean
+        description: Flag indicating that this entry is a correcting entry. Operations can be corrected by correcting entries that usually have opposite amounts.
+        example: false
+      operationDetails:
+        type: array
+        items:
+          type: object
+          properties:
+            key:
+              type: string
+              description: operation detail entry key
+              example: transferTitle
+            value:
+              type: string
+              description: operation detail entry value
+              example: "Invoice 1/01/2018, from John Smith"
+      orderedBy:
+        type: string
+        description: "Combination of order channel and first five characters of used of the API key in case of API channel or panel user email address in case of GUI channel, for example: API/1a2b3... or BIZ/user@example.com"
+        example: "/^(API|WT|BIZ)/(.*)?$/"
+
+######## ENDPOINTS ############
+paths:
+  /account/balances:
+    get:
+      tags:
+      - account
+      summary: Returns wallet balance
+      operationId: getBalances
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      responses:
+        200:
+          description: Returns wallet balances (if success set to false, examine errors object)
+          schema:
+            $ref: '#/definitions/BalanceResponse'
+          examples:
+            application/json:
+              {
+                "success":true,
+                "result":[
+                  {
+                    "currency":"EUR",
+                    "balanceTotal":"300.33",
+                    "balanceAvailable":"300.33",
+                    "balanceReserved":"0.00"
+                  },
+                  {
+                    "currency":"PLN",
+                    "balanceTotal":"17.34",
+                    "balanceAvailable":"17.34",
+                    "balanceReserved":"0.00"
+                  },
+                  {
+                    "currency":"USD",
+                    "balanceTotal":"1.28",
+                    "balanceAvailable":"1.28",
+                    "balanceReserved":"0.00"
+                  }
+                ]
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            curl -X GET -H 'X-API-Key:<your api-key>' 'https://api.walutomat.pl/api/v2.0.0/account/balances'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader]
+
+  /account/history:
+    get:
+      tags:
+      - account
+      summary: Returns wallet history - operations recorded on the wallet
+      description: |
+        **OperationDetails**:
+        The table below presents keys provided in OperationDeatils depending on OperationType of an entry in the account history
+
+        |  OperationType   | OperationDetailedType           | OperationDetails                                                                                                                                    |
+        |------------------|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------------------------------|
+        | PAYIN            | PAYIN                           | transferTitle, senderName, sourceAccount, destinationAccount                                                                                        |
+        | PAYIN            | PAYIN_P24                       | transferTitle, paymentProviderId                                                                                                                    |
+        | PAYIN            | PAYIN_CARD                      | transferTitle, provider, providerOperationId, cardNumber                                                                                            |
+        | PAYIN            | PAYIN_PAYPAL                    | transferTitle                                                                                                                                       |
+        | PAYIN            | PAYIN_P24_BLIK                  | transferTitle, provider, providerOperationId, cardNumber                                                                                            |
+        | PAYIN            | PAYIN_BLIK                      | transferTitle, provider, providerOperationId, cardNumber                                                                                            |
+        | PAYIN            | PAYIN_P24_GPAY                  | transferTitle, provider, providerOperationId, cardNumber                                                                                            |
+        | PAYIN            | PAYIN_P24_NOW                   | transferTitle, paymentProviderId                                                                                                                    |
+        | PAYOUT           | PAYOUT                          | destinationAccount, sourceAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | PAYOUT           | PAYOUT_REJECT                   | destinationAccount, sourceAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | PAYOUT           | PAYOUT_RETURN                   | destinationAccount, sourceAccount, ownerName, ownerAdress, country, swift, transferTitle, returnReasonCode, returnReasonText                                       |
+        | PAYOUT           | PAYOUT_POST_FACTUM              | destinationAccount, sourceAccount, ownerName, ownerAdress, country, swift, transferTitle,                                                                          |
+        | PAYOUT           | CASH_PAYOUT                     | no details                                                                                                                                          |
+        | PAYOUT           | CASH_PAYOUT_RETURN              | no details                                                                                                                                          |
+        | PAYOUT           | THIRD_PARTY_PAYOUT              | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | PAYOUT           | THIRD_PARTY_PAYOUT_REJECT       | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | PAYOUT           | THIRD_PARTY_PAYOUT_RETURN       | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle, returnReasonCode, returnReasonText                                       |
+        | PAYOUT           | PAYMENT_AGENT_PAYOUT            | destinationAccount, ownerName, ownerAddress, country, swift, transferTitle, debtorId, debtorName, debtorAccount                                     |
+        | PAYOUT           | PAYMENT_AGENT_PAYOUT_REJECT     | destinationAccount, ownerName, ownerAddress, country, swift, transferTitle, debtorId, debtorName, debtorAccount                                     |
+        | PAYOUT           | PAYMENT_AGENT_PAYOUT_RETURN     | destinationAccount, ownerName, ownerAddress, country, swift, transferTitle, debtorId, debtorName, debtorAccount, returnReasonCode, returnReasonCode |
+        | MARKET_FX        | MARKET_FX                       | orderId, currencyPair, buySell, orderVolume, priceLimit                                                                                             |
+        | DIRECT_FX        | DIRECT_FX                       | amountSold, amountBought, rate, rateTs                                                                                                              |
+        | TRANSFER         | INTERNAL                        | title, senderAccountId, receiverAccountId, receiverDetails                                                                                          |
+        | TRANSFER         | WT_PAY                          | title, senderAccountId, receiverAccountId, receiverDetails, partnerOrderId                                                                          |
+        | COMMISSION       | PAYIN_FEE                       | transferTitle, senderName, sourceAccount, destinationAccount                                                                                        |
+        | COMMISSION       | PAYIN_P24_FEE                   | transferTitle, paymentProviderId                                                                                                                    |
+        | COMMISSION       | PAYIN_CARD_FEE                  | transferTitle, provider, providerOperationId, cardNumber                                                                                            |
+        | COMMISSION       | PAYIN_BLIK_FEE                  | transferTitle, provider, providerOperationId, cardNumber                                                                                         |
+        | COMMISSION       | PAYIN_PAYPAL_FEE                | transferTitle                                                                                                                                       |
+        | COMMISSION       | PAYOUT_FEE                      | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | COMMISSION       | PAYOUT_REJECT_FEE               | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | COMMISSION       | CASH_PAYOUT_FEE                 | no details                                                                                                                                          |
+        | COMMISSION       | THIRD_PARTY_PAYOUT_FEE          | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | COMMISSION       | THIRD_PARTY_PAYOUT_REJECT_FEE   | destinationAccount, ownerName, ownerAdress, country, swift, transferTitle                                                                           |
+        | COMMISSION       | PAYMENT_AGENT_PAYOUT_FEE        | destinationAccount, ownerName, ownerAddress, country, swift, transferTitle, debtorId, debtorName, debtorAccount                                     |
+        | COMMISSION       | PAYMENT_AGENT_PAYOUT_REJECT_FEE | destinationAccount, ownerName, ownerAddress, country, swift, transferTitle, debtorId, debtorName, debtorAccount                                     |
+        | COMMISSION       | MARKET_FX_FEE                   | orderId, currencyPair, buySell, orderVolume, priceLimit                                                                                             |
+        | COMMISSION       | CHARGE_COMPENSATION             | title                                                                                                                                               |
+        | COMMISSION       | MONTHLY_FEE                     | no details                                                                                                                                          |
+        | OTHER            | CUSTOMER_PROFIT                 | title                                                                                                                                               |
+      operationId: getHistory
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: |
+          Individual request signature with a private key, refer to documentation how to sign requests.
+        required: true
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: dateFrom
+        type: string
+        description: Date in format YYYY-MM-DDThh:mm:ssTZD, if provided just operations recorded in this date and newer are returned (inclusive)
+        format: date-time
+        required: false
+      - in: query
+        name: dateTo
+        type: string
+        format: date-time
+        description: Date in format YYYY-MM-DDThh:mm:ssTZD, if provided just operations older than this date are returned (exclusive)
+        required: false
+      - in: query
+        name: currencies
+        type: array
+        items:
+          type: string
+          enum: *AnyCurrency
+        description: Comma-separated list of currency codes in ISO format, if provided only operations in given currencies are returned, otherwise operations in all currencies are returned
+        required: false
+      - in: query
+        name: operationType
+        type: string
+        description: Can be used to limit results to selected operation type like payin, payout, currency exchange or commission, if not provided all operations of any kind on multicurrency wallet are returned
+        required: false
+        enum:
+        - PAYIN
+        - PAYOUT
+        - COMMISSION
+        - DIRECT_FX
+        - MARKET_FX
+        - TRANSFER
+        - OTHER
+      - in: query
+        name: operationDetailedType
+        type: string
+        description: Can be used to limit results to selected operation detailed type
+        required: false
+        enum:
+        - PAYIN
+        - PAYIN_CARD
+        - PAYIN_CARD_FEE
+        - PAYIN_FEE
+        - PAYIN_PAYPAL
+        - PAYIN_PAYPAL_FEE
+        - PAYOUT
+        - PAYOUT_FEE
+        - PAYOUT_RETURN
+        - PAYOUT_FEE_RETURN
+        - PAYOUT_POST_FACTUM
+        - CASH_PAYOUT
+        - CASH_PAYOUT_FEE
+        - CASH_PAYOUT_RETURN
+        - PAYIN_P24
+        - PAYIN_P24_FEE
+        - PAYIN_P24_BLIK
+        - PAYIN_BLIK
+        - PAYIN_BLIK_FEE
+        - PAYIN_P24_GPAY
+        - PAYIN_P24_NOW
+        - MARKET_FX
+        - MARKET_FX_FEE
+        - DIRECT_FX
+        - CHARGE_COMPENSATION
+        - CUSTOMER_PROFIT
+        - WT_PAY
+        - INTERNAL
+        - MONTHLY_FEE
+        - OTHER
+      - in: query
+        name: itemLimit
+        type: integer
+        default: 200
+        description: Maximum number of account operations fetched in one response. If actual number of operations satisfying request criteria exceeds volume number, response is trimmed to this number and next request with appropriate continueFrom parameter shall be used to read next batch of operations.
+        required: false
+        minimum: 1
+        maximum: 200
+      - in: query
+        name: continueFrom
+        type: integer
+        description: ID of the history item the query will resume from. Usually the last historyItemId received in a prevoius batch. Item with provided id will not be included in the response (exclusive).
+        required: false
+        minimum: 1
+      - in: query
+        name: sortOrder
+        type: string
+        default: 'DESC'
+        description: Sort order of returned elements.
+        required: false
+        enum:
+        - ASC
+        - DESC
+      responses:
+        200:
+          description: Returns list of operations on Walutomat multicurrency account according to selected filters. When no filters seelcted all operations up to the default volume of 200 are taken into account.
+          schema:
+            $ref: '#/definitions/HistoryResponse'
+          examples:
+            application/json:
+              {
+                "success":true,
+                "result":[
+                  {
+                    "historyItemId":51277549,
+                    "transactionId":"a4570b2b-23cf-4703-baf1-9b6361be267c",
+                    "ts":"2018-10-08T13:10:14.788Z",
+                    "operationAmount":"-432.43 PLN",
+                    "balanceAfter":"-423.75 PLN",
+                    "operationDetails":[
+                      {
+                        "key":"amountSold",
+                        "value":"432.43 PLN"
+                      },
+                      {
+                        "key":"amountBought",
+                        "value":"100.00 EUR"
+                      },
+                      {
+                        "key":"rate",
+                        "value":"4.3243"
+                      },
+                      {
+                        "key":"rateTs",
+                        "value":"2018-10-08T13:10:00.000Z"
+                      }
+                    ],
+                    "currency":"PLN",
+                    "operationType":"DIRECT_FX",
+                    "operationDetailedType":"DIRECT_FX",
+                    "submitId":"test105",
+                    "orderedBy": "API/apike…"
+                  },
+                  {
+                    "historyItemId":51277650,
+                    "transactionId":"8981849f-30ea-4049-9ecc-1a25db0920ae",
+                    "ts":"2018-10-08T13:11:41.970Z",
+                    "operationAmount":"-0.24 EUR",
+                    "balanceAfter":"105.09 EUR",
+                    "operationDetails":[
+                      {
+                        "key":"amountSold",
+                        "value":"0.24 EUR"
+                      },
+                      {
+                        "key":"amountBought",
+                        "value":"1.00 PLN"
+                      },
+                      {
+                        "key":"rate",
+                        "value":"4.2943"
+                      },
+                      {
+                        "key":"rateTs",
+                        "value":"2018-10-08T13:10:00.000Z"
+                      }
+                    ],
+                    "currency":"EUR",
+                    "operationType":"DIRECT_FX",
+                    "operationDetailedType":"DIRECT_FX",
+                    "submitId":"test106",
+                    "orderedBy": "GUI/user@example.com"
+                  }
+                ]
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            timestamp=2019-08-12T14:18:36Z
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/account/history
+            params="?currencies=PLN,EUR&operationType=DIRECT_FX&dateFrom=2018-10-01T00:00:00Z&dateTo=2018-11-01T00:00:00Z&itemLimit=2&continueFrom=51277548&sortOrder=ASC"
+
+            toSign=$timestamp$endpoint$params
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+              -H "X-API-Key: $apikey" \
+              -H "X-API-Timestamp: $timestamp" \
+              -H "X-API-Signature: $sign" \
+              -X GET "$server$endpoint$params"
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader]
+
+  /account/history/mt940:
+    get:
+      tags:
+        - account
+      summary: Returns wallet history (operations recorded on the wallet) in MT940 format
+      description: The MT940 is a standard SWIFT message for electronic banking statements. MT940 statements used to import balances and transactions to ERP systems. MT940 statements are delivered as text in the result field. Format bases on MT940 SWIFT specification.
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: |
+          Individual request signature with a private key, refer to documentation how to sign requests.
+        required: true
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: dateFrom
+        type: string
+        description: Date in format YYYY-MM-DD, if provided only dateFrom, given date automatically will be used for dateTo and operations recorded in this date are returned (inclusive)
+        example: "2020-01-01"
+        format: date
+        required: true
+      - in: query
+        name: dateTo
+        type: string
+        description: Date in format YYYY-MM-DD, if provided just operations older than this date are returned (exclusive)
+        example: "2020-03-01"
+        format: date
+        required: false
+      - in: query
+        name: currencies
+        type: array
+        items:
+          type: string
+          enum: *AnyCurrency
+        description: Comma-separated list of currency codes in ISO format, if provided only operations in given currencies are returned, otherwise operations in all currencies are returned
+        required: false
+      responses:
+        200:
+          description: Returns string in mt940 format statement with operations on Walutomat multicurrency account according to selected filters. When no filters seelcted all operations up to the default volume of 200 are taken into account.
+          schema:
+            $ref: '#/definitions/HistoryMt940Response'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "result": ":20:ST-WT161109EUR/1\r\n:25:WX123WX-EUR\r\n:28C:314/1\r\n:60F:C161109EUR1000270,00\r\n:62F:C161109EUR1000270,00\r\n:64:C161109EUR1000270,00\r\n"
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/account/history/mt940
+            params="?dateFrom=2022-08-08&currencies=PLN,EUR"
+
+            toSign=$timestamp$endpoint$params
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+              -H "X-API-Key: $apikey" \
+              -H "X-API-Timestamp: $timestamp" \
+              -H "X-API-Signature: $sign" \
+              -X GET "$server$endpoint$params"
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader]
+
+  /direct_fx/rates:
+    get:
+      tags:
+      - direct_fx
+      summary: Returns current exchange rate
+      description: Returns current exchange rate (buy and sell) offered by Currency One for specified currency pair
+      operationId: getFxRate
+      security:
+      - api_key: []
+      x-c1-roles: [admin, direct_fx]
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: currencyPair
+        type: string
+        description: Currency pair, i.e. base currency and counter currency with no separator, e.g. EURPLN
+        required: true
+      responses:
+        200:
+          description: Returns current exchange rate (if success set to false, examine errors object)
+          schema:
+            $ref: '#/definitions/FxRateResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "errors": [
+                ],
+                "result": {
+                  "ts": "2018-03-27T09:58:06.945Z",
+                  "currencyPair": "EURPLN",
+                  "buyRate": "4.1234",
+                  "sellRate": "4.0987"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+            endpoint=https://api.walutomat.pl/api/v2.0.0/direct_fx/rates
+            params="?currencyPair=EURPLN"
+            curl -i \
+              -H "X-API-Key: $apikey" \
+              -X GET "$endpoint$params"
+
+  /market_fx/best_offers:
+    get:
+      tags:
+      - market_fx
+      summary: Returns 10 best bids and asks on currency pair in question
+      operationId: getBestOffers
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: query
+        name: currencyPair
+        type: string
+        enum: *MarketPair
+        description: Currency pair, i.e. base currency and counter currency with no separator, e.g. EURPLN
+        required: true
+      responses:
+        200:
+          description: Returns best offers available on market (10 bids and asks), if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/BestOffersResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "errors": [
+                ],
+                "result": {
+                  "ts": "2018-03-27T09:58:06.945Z",
+                  "currencyPair": "EURPLN",
+                  "bids": [
+                    {
+                      "price": 4.3518,
+                      "volume": 962.65,
+                      "valueInOppositeCurrency": 4189.27
+                    }
+                  ],
+                  "asks": [
+                    {
+                      "price": 4.3518,
+                      "volume": 962.65,
+                      "valueInOppositeCurrency": 4189.27
+                    }
+                  ]
+                }
+              }
+      x-c1-roles: [public]
+
+  /market_fx/best_offers/detailed:
+    get:
+      tags:
+      - market_fx
+      summary: Returns more detailed list of best bids and asks on currency pair in question
+      operationId: getBestOffersDetailed
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: currencyPair
+        type: string
+        enum: *MarketPair
+        description: Currency pair, i.e. base currency and counter currency with no separator, e.g. EURPLN
+        required: true
+      - in: query
+        name: itemLimit
+        type: integer
+        default: 10
+        description: Indicates how many uniquely priced offers are to be fetched (starting from the best).
+        required: false
+        minimum: 1
+      responses:
+        200:
+          description: Returns best offers available on market - 10 (or itemLimit) bids and asks, if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/BestOffersDetailedResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "errors": [
+                ],
+                "result": {
+                  "ts": "2020-07-02T00:05:06.531Z",
+                  "currencyPair": "EURPLN",
+                  "bids": [
+                    {
+                      "price": 4.3518,
+                      "volume": 962.65,
+                      "valueInOppositeCurrency": 4189.27,
+                      "quotes": [
+                        {
+                          "volume": 962.65,
+                          "valueInOppositeCurrency": 4189.27,
+                          "ts": "2020-07-02T00:03:06.531Z"
+                        },
+                      ]
+                    }
+                  ],
+                  "asks": [
+                    {
+                      "price":4.3768,
+                      "volume": 3935.70,
+                      "valueInOppositeCurrency": 17225.77,
+                      "quotes": [
+                        {
+                          "volume": 3835.70,
+                          "valueInOppositeCurrency": 16788.09,
+                          "ts": "2020-07-02T00:04:06.531Z"
+                        },
+                        {
+                          "volume": 100.00,
+                          "valueInOppositeCurrency": 437.68,
+                          "ts": "2020-07-21T11:27:33.352597Z",
+                          "own": true
+                        }
+                      ],
+                      "includesOwn": true
+                    },
+                  ]
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            curl -X GET -H 'X-API-Key:<your api-key>' 'https://api.walutomat.pl/api/v2.0.0/market_fx/best_offers/detailed'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader, market_fx]
+
+  /market_fx/orders/active:
+    get:
+      tags:
+      - market_fx
+      summary: Returns active orders, ordered by most recently submitted.
+      operationId: findActiveOrders
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: itemLimit
+        type: integer
+        default: 10
+        description: Maximum items fetched in one response. Use olderThan parameter to get older orders.
+        required: false
+        minimum: 1
+        maximum: 100
+      - in: query
+        name: olderThan
+        type: string
+        description: >
+          `submitTs` of the last order from previous response. Use this to fetch next batch of active orders, if any.
+        format: date-time
+        required: false
+      responses:
+        200:
+          description: Returns matching orders details, if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/OrdersResponse'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader, market_fx]
+
+  /market_fx/orders:
+    get:
+      tags:
+      - market_fx
+      summary: Returns the list with an order specified by orderId or empty list if not found.
+      operationId: findOrders
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: query
+        name: orderId
+        type: string
+        minLength: 36
+        maxLength: 36
+        description: Order identifier returned during order creation, example "22dba34d-d266-4084-9f3e-1b2c7c78c172"
+        required: true
+      responses:
+        200:
+          description: Returns matching order details, if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/OrdersResponse'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader, market_fx]
+
+    post:
+      tags:
+      - market_fx
+      summary: Submits new FX order to market
+      description: Platform allows to submit buy or sell order with price limit. Orders shall concern one of currency pairs listed on Walutomat market.
+      operationId: newOrder
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature, optional when dryRun set to true (if present in dryRun mode, its correctness will be validated), way of protecting most sensitive requests, hash from request is signed with client private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: formData
+        name: dryRun
+        type: boolean
+        description: If set to true, dry run mode is on. In this mode order is not placed on market, only request correctness and possiblity to place order is checked
+        default: false
+      - in: formData
+        name: submitId
+        type: string
+        pattern: /^[a-zA-Z0-9_-]{1,36}$/
+        description: Unique exchange identifier assigned by sender (GUID or UUID), required when not dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+      - in: formData
+        name: currencyPair
+        type: string
+        enum: *MarketPair
+        description: Currency pair, i.e. base currency and counter currency with no separator, e.g. EURPLN, must be a pair listed on Walutomat market
+        required: true
+      - in: formData
+        name: buySell
+        type: string
+        description: BUY or SELL order type
+        enum:
+        - BUY
+        - SELL
+        required: true
+      - in: formData
+        name: volume
+        type: string
+        description: Order volume, order limit (maximum amount of currency to be bought/sold depending on buySell attribute)
+        required: true
+        pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+      - in: formData
+        name: volumeCurrency
+        type: string
+        description: Currency of provided volume value. ISO currency code.
+        enum: *MarketCurrency
+        required: true
+      - in: formData
+        name: limitPrice
+        type: string
+        pattern: /^[0-9]{1,2}([.][0-9]{1,4})?$/
+        description: Maximum rate to buy currency at in case of BUY order, minimum rate to sell currency at in case of SELL order
+        required: true
+      responses:
+        200:
+          description: Returns whether operation succeeded and identifier of created order or error - if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/NewOrderResponse'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, market_fx]
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+            endpoint=https://api.walutomat.pl/api/v2.0.0/market_fx/orders
+            curl -i \
+              -d "currencyPair=EURPLN&buySell=SELL&volume=90.00&volumeCurrency=EUR&limitPrice=4.2456&submitId=submit-id-1" \
+              -H "X-API-Key: $apikey" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -X POST "$endpoint"
+
+  /market_fx/orders/close:
+    post:
+      tags:
+      - market_fx
+      summary: Withdraw order from market
+      description: If given order is still active on market, it will be eventually withdrawn even though it is not fully executed. Please note that order might be partially executed before close request has arrived.
+      operationId: cancelOrder
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: formData
+        name: orderId
+        type: string
+        minLength: 36
+        maxLength: 36
+        description: Order identifier returned during order creation, example "22dba34d-d266-4084-9f3e-1b2c7c78c172"
+        required: true
+      responses:
+        200:
+          description: Returns operation result and closed order details. If success set to false, examine errors object. Successfully closed order has status CLOSED, completion is 0 when order was closed before any exchange was performed, 100 if order was fully executed before close request arrived or between 0 and 100 when order was partially executed before it was withdrew from market upon close request.
+          schema:
+            $ref: '#/definitions/OrderResponse'
+      security:
+      - api_key: []
+      x-c1-roles: [admin, market_fx]
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+            endpoint=https://api.walutomat.pl/api/v2.0.0/market_fx/orders/close
+            curl -i \
+              -d "orderId=order-id-1" \
+              -H "X-API-Key: $apikey" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -X POST "$endpoint"
+
+  /direct_fx/exchanges:
+    post:
+      security:
+      - api_key: []
+      tags:
+      - direct_fx
+      summary: Requests currency exchange
+      description: Requests currency exchange at rate provided by Currency One
+      operationId: newExchange
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature, optional when dryRun set to true (if present in dryRun mode, its correctness will be validated), way of protecting most sensitive requests, hash from request is signed with client private key, refer to documentation how to sign requests
+        required: false
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: false
+      - in: formData
+        name: dryRun
+        description: When true, dry run mode is on. In this mode currency exchange is not executed, only request correctness and possiblity to execute given exchange is checked instead
+        type: boolean
+        default: false
+      - in: formData
+        name: submitId
+        description: Any unique exchange identifier assigned by sender, required when not dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+        type: string
+        pattern: /^[a-zA-Z0-9_-]{1,36}$/
+      - in: formData
+        name: currencyPair
+        description: Currency pair, i.e. base currency and counter currency with no separator, e.g. EURPLN.
+        type: string
+        required: true
+      - in: formData
+        name: buySell
+        description: BUY or SELL operation
+        type: string
+        enum:
+        - BUY
+        - SELL
+        required: true
+      - in: formData
+        name: volume
+        description: Exchange volume, example "999.00"
+        type: string
+        required: true
+        pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+      - in: formData
+        name: volumeCurrency
+        description: Currency of provided volume value. ISO currency code.
+        type: string
+        enum: *AnyCurrency
+        required: true
+      - in: formData
+        name: ts
+        description: An identifier of the rate received from Exchange rates response (it is always in ISO 8601 format), example "2018-03-27T09:58:06.945Z"
+        type: string
+        format: date-time
+        required: true
+      responses:
+        200:
+          description: Returns operation result, if operation succeeded details of permed currency exchange are returned, if success set to false, examine errors object.
+          schema:
+            $ref: '#/definitions/ExchangeResponse'
+          examples:
+            application/json:
+              {
+                "success":true,
+                "duplicate":false,
+                "errors":[
+
+                ],
+                "result":{
+                  "exchangeId":"8981849f-30ea-4049-9ecc-1a25db0920ae"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+            endpoint=https://api.walutomat.pl/api/v2.0.0/direct_fx/exchanges
+            curl -i \
+              -d "currencyPair=EURPLN&buySell=SELL&volume=90.00&volumeCurrency=EUR&submitId=test107&ts=2018-10-08T13:15:00.000Z" \
+              -H "X-API-Key: $apikey" \
+              -H "Content-Type: application/x-www-form-urlencoded" \
+              -X POST "$endpoint"
+      x-c1-roles: [admin, direct_fx]
+      x-c1-logResponse: true
+
+  /transfer:
+    get:
+      tags:
+      - payout
+      summary: Learn transfer status and details
+      description: Returns the transfer specified by transferId (transactionId) or ErrorType TRANSACTION_NOT_FOUND if not found.
+      operationId: getTransfer
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: true
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: true
+      - in: query
+        name: transferId
+        type: string
+        minLength: 36
+        maxLength: 36
+        description: Transfer identifier assigned during transfer creation, example "22dba34d-d266-4084-9f3e-1b2c7c78c172" (if transfer ordered via API, could be found in the response, also visible in operations history available in the user panel and API endpoint). If both transferId and submitId are provided then only transferId is used.
+        required: false
+      - in: query
+        name: submitId
+        type: string
+        pattern: /^[a-zA-Z0-9_-]{1,36}$/
+        description: Unique transfer identifier assigned by sender when requesting this transfer. If both transferId and submitId are provided then only transferId is used.
+        required: false
+      responses:
+        200:
+          description: Returns matching transfer details, if success set to false, examine errors object
+          schema:
+            $ref: '#/definitions/TransferResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "errors": [],
+                "result": {
+                  "transferId": "2b5121cb-2b38-4fd8-be34-0aac4cf96c8d",
+                  "submitId": "916f1f98-01f6-412a-85e7-2482f1f4c112",
+                  "responseTs": "2018-03-28T08:01:06.200Z",
+                  "transferStatus": "SETTLED",
+                  "submittedTs": "2018-03-27T09:58:06.945Z",
+                  "settledTs": "2018-03-27T10:12:16.120Z",
+                  "currency": "EUR",
+                  "volume": "99.00",
+                  "transferTitle": "transfer of money",
+                  "recipientAccount": "PL32508899582003907890722908",
+                  "recipientName": "John Doe"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            timestamp=2019-08-12T14:18:36Z
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/transfer
+            params="?transferId=22dba34d-d266-4084-9f3e-1b2c7c78c172"
+
+            toSign=$timestamp$endpoint$params
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+              -H "X-API-Key: $apikey" \
+              -H "X-API-Timestamp: $timestamp" \
+              -H "X-API-Signature: $sign" \
+              -X GET "$server$endpoint$params"
+      security:
+      - api_key: []
+      x-c1-roles: [admin, reader]
+
+  /transfer/internal:
+    post:
+      security:
+      - api_key: []
+      tags:
+      - payout
+      summary: Requests new internal transfer from own wallet to another wallet operated by Currency One.
+      description: Requests new internal transfer from own wallet to another wallet operated by Currency One. Both beneficiary and debtor must have wallets in Currency One opened. Could be used in dryRun mode to learn just transfer possibility and cost instead of perforing actual money transfer.
+      operationId: newTransferInternal
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: true
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: true
+      - in: formData
+        name: dryRun
+        type: boolean
+        description: When true, dry run mode is on. In this mode payout is not sent to execution, only request correctness, cost and possiblity to execute given transfer is checked instead
+        default: false
+      - in: formData
+        name: submitId
+        type: string
+        pattern: /^[a-zA-Z0-9_-]{1,36}$/
+        description: Any unique transfer identifier assigned by sender, required when not dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+      - in: formData
+        name: currency
+        type: string
+        description: ISO currency code. Consult business documentation and agreeement to determine in which currencies transfers are provided to you.
+        enum: *AnyCurrency
+        required: true
+      - in: formData
+        name: volume
+        type: string
+        description: Transfer amount, example "999.00"
+        required: true
+        pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+      - in: formData
+        name: title
+        type: string
+        maxLength: 112
+        description: Transfer title, example "payment to invoice number 1/2018"
+      - in: formData
+        name: accountNumber
+        type: string
+        description: Destination account number assigned to customer that receives transfer, example "WX1234567890WX"
+        required: true
+      - in: formData
+        name: recipientName
+        type: string
+        maxLength: 90
+        description: Destination account owner, example "Adventure Works Ltd"
+        required: true
+      - in: formData
+        name: recipientAddress
+        type: string
+        maxLength: 90
+        description: |
+          Destination account owner address.
+          Address should have following format:<br/>
+          `<country code (required)>;<province>;<town (required)>;<postcode>;<street>;<building number>;<flat number>`<br/>
+          Which will be validated using regexp:<br/>
+          `/^[A-Z]{2};[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]+;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*$/`
+          <br/>Example: `PL;Pomorskie;Pruszcz Gdański;83-000;Ogrodowa;1;8`
+      - in: formData
+        name: transferCostInstruction
+        type: string
+        description: |
+          - `RECEIVER_VOLUME` means recipient will receive exact amount provided in volume attribute.
+          - `SENDER_VOLUME` means that volume attribute specifies sent volume (for certain transfers there are no guarantee that volume received is equal to volume sent, because extra charges may be deducted from transferred volume).
+
+          Notes:
+            - `transferCostInstruction` may have impact on transfer fee.
+            - Business documentation specifies fees.
+
+        enum:
+          - SENDER_VOLUME
+          - RECEIVER_VOLUME
+        required: true
+      responses:
+        200:
+          description: Response indicates whether transfer was accepted and associated fees are provided. If success set to false, examine errors object.
+          schema:
+            $ref: '#/definitions/NewTransferResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "duplicate": false,
+                "result": {
+                    "feeAmount": "0.23",
+                    "feeCurrency": "EUR",
+                    "transferId": "1f38762e-48e7-447d-afea-85211acb7d0e",
+                    "transferType":"SEPA"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/transfer/internal
+            timestamp=2019-08-12T14:18:36Z
+            params="dryRun=false&submitId=mytest2081023001&volume=100.00&currency=EUR&title=mytest23001&accountNumber=WX1234567890WX&recipientName=Kowalski&recipientAddress=Warsaw&transferCostInstruction=SENDER_VOLUME"
+
+            toSign=$timestamp$endpoint$params
+
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+                 -d $params \
+                 -H "X-API-Key: $apikey" \
+                 -H "X-API-Timestamp: $timestamp" \
+                 -H "X-API-Signature: $sign" \
+                 -H "Content-Type: application/x-www-form-urlencoded" \
+                 -X POST "$server$endpoint"
+      x-c1-roles: [admin, transfer_internal]
+      x-c1-logResponse: true
+
+  /transfer/iban:
+    post:
+      security:
+        - api_key: []
+      tags:
+        - payout
+      summary: Requests new transfer from wallet where destination account number is provided in IBAN format
+      description: Requests transfer from wallet where destination account number is provided in IBAN format - either actual or just simulation to learn transfer possibility and cost in dry run mode.
+      operationId: newTransferIban
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: X-API-Signature
+          type: string
+          description: Individual request signature with a private key, refer to documentation how to sign requests
+          required: true
+        - in: header
+          name: X-API-Timestamp
+          type: string
+          format: date-time
+          description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+          required: true
+        - in: formData
+          name: dryRun
+          type: boolean
+          description: When true, dry run mode is on. In this mode transfer is not sent to execution, only request correctness, cost and possiblity to execute given transfer is checked instead
+          default: false
+        - in: formData
+          name: submitId
+          type: string
+          pattern: /^[a-zA-Z0-9_-]{1,36}$/
+          description: Any unique transfer identifier assigned by sender, required when not in dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+        - in: formData
+          name: volume
+          type: string
+          description: Payout amount, example "999.00"
+          required: true
+          pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+        - in: formData
+          name: currency
+          type: string
+          description: ISO currency code. Consult business documentation and agreeement to determine in which currencies transfers are provided to you.
+          enum: *AnyCurrency
+          required: true
+        - in: formData
+          name: title
+          type: string
+          maxLength: 112
+          description: Transfer title, example "payment to invoice number 1/2018". In certain cases title may be shortened by cutting end of title.
+        - in: formData
+          name: accountNumber
+          type: string
+          description: Destination account number in IBAN format. Country code at the beginning of IBAN number is mandatory, example "PL71967221037685356996377436"
+          required: true
+        - in: formData
+          name: recipientName
+          type: string
+          maxLength: 90
+          required: true
+          description: Destination account owner, example "Adventure Works Ltd"
+        - in: formData
+          name: recipientAddress
+          type: string
+          maxLength: 90
+          description: |
+            Destination account owner address. Address should have following format:<br/>
+            `<country code (required)>;<province>;<town (required)>;<postcode>;<street>;<building number>;<flat number>`<br/>
+            Which will be validated using regexp:<br/>
+            `/^[A-Z]{2};[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]+;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*$/`
+            <br/>Example: `PL;Pomorskie;Pruszcz Gdański;83-000;Ogrodowa;1;8`<br/>
+            For certain transfers address is required - check business documentation.
+
+            Notes:
+              - An address is required for transfers outside the EEA (GB, CH, and MC) or currency is not in the EEA currencies list.
+              - An address is required for amounts above EUR 15,000 (and equivalent in another currency).
+        - in: formData
+          name: faster
+          type: boolean
+          description: Enables usually more expensive, but faster transfer. Availability may vary across currencies and destinations. Consult business documentation and agreement to determine availability, conditions and associated cost.
+          default: false
+        - in: formData
+          name: transferCostInstruction
+          type: string
+          description: |
+            - `RECEIVER_VOLUME` means recipient will receive exact amount provided in volume attribute.
+            - `SENDER_VOLUME` means that volume attribute specifies sent volume (for certain transfers there are no guarantee that volume received is equal to volume sent, because extra charges may be deducted from transferred volume).
+
+            Notes:
+              - `transferCostInstruction` may have impact on transfer fee.
+              - It is possible that for certain countries and currencies we are not able to send transfer with RECEIVER_VOLUME option. In such case, requests with `RECEIVER_VOLUME` option will be rejected.
+              - Business documentation specifies fees and possible transfer instructions for various transfer destinations.
+
+          enum:
+            - SENDER_VOLUME
+            - RECEIVER_VOLUME
+          required: true
+        - in: formData
+          name: additionalRemittanceInformation
+          type: string
+          maxLength: 106
+          pattern: /^([A-Za-z0-9 _.\-]+),([A-Za-zÀ-ž0-9 _.\-]+);(A|I):([A-Za-z0-9 _.\-]+)$/
+          description: |
+            Extra information about requested transfer, reserved for certain API clients and cases. Please fill in only when requested and in the form you will receive in separate document. Endpoint will return error if filled in when not required or incorrectly filled.
+        - in: formData
+          name: transferPurpose
+          type: string
+          description: |
+            The purpose of transfer. Might be required for high volume and offshore transfers, detailed usage conditions outlined in the business agreement.
+          enum:
+            - BILLS
+            - COMMODITY
+            - DONATION_ENTITY
+            - DONATION_PERSON
+            - FAMILY
+            - PREPAYMENT
+            - SERVICE
+            - PROPERTY
+            - OTHER
+          required: false
+        - in: formData
+          name: sourceOfIncome
+          type: string
+          description: |
+            Source of funds. Might be required for high volume and offshore transfers, detailed usage conditions outlined in the business agreement.
+          enum:
+            - SALARY
+            - SAVINGS
+            - SCHOLARSHIP
+            - INSURANCE
+            - INVESTMENTS
+            - DONATION
+            - BUSINESS_INCOME
+            - OTHER
+          required: false
+      responses:
+        200:
+          description: Response indicates whether transfer was accepted and associated fees are provided. If success set to false, examine errors object.
+          schema:
+            $ref: '#/definitions/NewTransferResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "duplicate": false,
+                "result": {
+                    "feeAmount": "0.23",
+                    "feeCurrency": "EUR",
+                    "transferId": "1f38762e-48e7-447d-afea-85211acb7d0e",
+                    "transferType":"SEPA"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/transfer/iban
+            timestamp=2019-08-12T14:18:36Z
+            params="dryRun=false&submitId=mytest2081023002&volume=100.00&currency=EUR&title=mytest23002&accountNumber=PL57109014630000000110267150&recipientName=Kowalski&recipientAddress=Warsaw&transferCostInstruction=SENDER_VOLUME&transferPurpose=BILLS&sourceOfIncome=SALARY"
+
+            toSign=$timestamp$endpoint$params
+
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+                 -d $params \
+                 -H "X-API-Key: $apikey" \
+                 -H "X-API-Timestamp: $timestamp" \
+                 -H "X-API-Signature: $sign" \
+                 -H "Content-Type: application/x-www-form-urlencoded" \
+                 -X POST "$server$endpoint"
+
+      x-c1-roles: [admin, transfer_iban]
+      x-c1-logResponse: true
+
+  /transfer/iban/sepa:
+    post:
+      security:
+        - api_key: []
+      tags:
+        - payout
+      summary: Requests new SEPA transfer from wallet where destination account number is provided in IBAN format.
+      description: Requests transfer from wallet where destination account number is provided in IBAN format - either actual or just simulation to learn transfer possibility and cost in dry run mode. This method is restricted to SEPA / SEPA INSTANT transfers only.
+      operationId: newTransferIbanSepa
+      consumes:
+        - application/x-www-form-urlencoded
+      produces:
+        - application/json
+      parameters:
+        - in: header
+          name: X-API-Signature
+          type: string
+          description: Individual request signature with a private key, refer to documentation how to sign requests
+          required: true
+        - in: header
+          name: X-API-Timestamp
+          type: string
+          format: date-time
+          description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+          required: true
+        - in: formData
+          name: dryRun
+          type: boolean
+          description: When true, dry run mode is on. In this mode transfer is not sent to execution, only request correctness, cost and possiblity to execute given transfer is checked instead
+          default: false
+        - in: formData
+          name: submitId
+          type: string
+          pattern: /^[a-zA-Z0-9_-]{1,36}$/
+          description: Any unique transfer identifier assigned by sender, required when not in dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+        - in: formData
+          name: volume
+          type: string
+          description: Payout amount, example "999.00"
+          required: true
+          pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+        - in: formData
+          name: title
+          type: string
+          maxLength: 112
+          description: In certain cases title may be shortened by cutting end of title.
+          required: false
+          pattern: /^[A-Za-zÀ-ž0-9 _.,()\/\-]+$/
+        - in: formData
+          name: accountNumber
+          type: string
+          description: Destination account number in IBAN format. Country code at the beginning of IBAN number is mandatory, example "PL71967221037685356996377436"
+          required: true
+        - in: formData
+          name: recipientName
+          type: string
+          maxLength: 90
+          required: true
+          pattern: /^[A-Za-zÀ-ž0-9 _.\-]+$/
+          description: Destination account owner, example "Adventure Works Ltd"
+        - in: formData
+          name: recipientAddress
+          type: string
+          maxLength: 90
+          description: |
+            Destination account owner address. Address should have following format:<br/>
+            `<country code (required)>;<province>;<town (required)>;<postcode>;<street>;<building number>;<flat number>`<br/>
+            Which will be validated using regexp:<br/>
+            `/^[A-Z]{2};[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]+;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*;[A-Za-zÀ-ž0-9 _\.\-]*$/`
+            <br/>Example: `PL;Pomorskie;Pruszcz Gdański;83-000;Ogrodowa;1;8`
+            <br/>For certain transfers address is required - check business documentation.
+
+            Notes:
+              - An address is required for amounts above EUR 15,000 (and equivalent in another currency).
+        - in: formData
+          name: instant
+          type: boolean
+          description: Differentiates between SEPA [false] and SEPA INSTANT [true] transfer types. Consult business documentation and agreement to determine availability, conditions and associated cost.
+          default: false
+        - in: formData
+          name: additionalRemittanceInformation
+          type: string
+          maxLength: 106
+          pattern: /^([A-Za-z0-9 _.\-]+),([A-Za-zÀ-ž0-9 _.\-]+);(A|I):([A-Za-z0-9 _.\-]+)$/
+          description: |
+            Extra information about requested transfer, reserved for certain API clients and cases. Please fill in only when requested and in the form you will receive in separate document. Endpoint will return error if filled in when not required or incorrectly filled.
+        - in: formData
+          name: transferPurpose
+          type: string
+          description: |
+            The purpose of transfer. Might be required for high volume and offshore transfers, detailed usage conditions outlined in the business agreement.
+          enum:
+            - BILLS
+            - COMMODITY
+            - DONATION_ENTITY
+            - DONATION_PERSON
+            - FAMILY
+            - PREPAYMENT
+            - SERVICE
+            - PROPERTY
+            - OTHER
+          required: false
+        - in: formData
+          name: sourceOfIncome
+          type: string
+          description: |
+            Source of funds. Might be required for high volume and offshore transfers, detailed usage conditions outlined in the business agreement.
+          enum:
+            - SALARY
+            - SAVINGS
+            - SCHOLARSHIP
+            - INSURANCE
+            - INVESTMENTS
+            - DONATION
+            - BUSINESS_INCOME
+            - OTHER
+          required: false
+      responses:
+        200:
+          description: Response indicates whether transfer was accepted and associated fees are provided. If success set to false, examine errors object.
+          schema:
+            $ref: '#/definitions/NewTransferResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "duplicate": false,
+                "result": {
+                  "feeAmount": "0.23",
+                  "feeCurrency": "EUR",
+                  "transferId": "1f38762e-48e7-447d-afea-85211acb7d0e"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/transfer/iban/sepa
+            timestamp=2019-08-12T14:18:36Z
+            params="dryRun=false&submitId=mytest2081023002&volume=100.00&title=mytest23002&accountNumber=PL57109014630000000110267150&recipientName=Kowalski&recipientAddress=Warsaw&transferPurpose=BILLS&sourceOfIncome=SALARY"
+
+            toSign=$timestamp$endpoint$params
+
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+                 -d $params \
+                 -H "X-API-Key: $apikey" \
+                 -H "X-API-Timestamp: $timestamp" \
+                 -H "X-API-Signature: $sign" \
+                 -H "Content-Type: application/x-www-form-urlencoded" \
+                 -X POST "$server$endpoint"
+
+      x-c1-roles: [admin, transfer_iban]
+      x-c1-logResponse: true
+
+  /transfer/noniban:
+    post:
+      security:
+      - api_key: []
+      tags:
+      - payout
+      summary: Requests new transfer from wallet to non-IBAN destinations
+      description: Requests transfer from wallet where destination account number is provided in local non-IBAN format - either actual or just simulation to learn transfer possibility and cost in dry run mode. Endpoint availability and the list of available countries/destinations and transfer currencies depends on business agreement.
+      operationId: newTransferNoniban
+      consumes:
+      - application/x-www-form-urlencoded
+      produces:
+      - application/json
+      parameters:
+      - in: header
+        name: X-API-Signature
+        type: string
+        description: Individual request signature with a private key, refer to documentation how to sign requests
+        required: true
+      - in: header
+        name: X-API-Timestamp
+        type: string
+        format: date-time
+        description: The UTC date/time of the request, valid for +5 and -5 minutes, used to expire the signature (X-API-Signature)
+        required: true
+      - in: formData
+        name: dryRun
+        type: boolean
+        description: When true, dry run mode is on. In this mode transfer is not sent to execution, only request correctness, cost and possiblity to execute given transfer is checked instead
+        default: false
+      - in: formData
+        name: submitId
+        type: string
+        pattern: /^[a-zA-Z0-9_-]{1,36}$/
+        description: Any unique transfer identifier assigned by sender, required when not in dry run mode, must not be used when dryRun=true, example "93a68f4d-ce40-40be-adac-3bb4d4b5e392"
+      - in: formData
+        name: volume
+        type: string
+        description: Payout amount, example "999.00"
+        required: true
+        pattern: /^[0-9]{1,12}([.][0-9]{2})?$/
+      - in: formData
+        name: currency
+        type: string
+        description: ISO currency code. Consult business documentation and agreeement to determine in which currencies transfers are provided to you.
+        enum: *NonibanTransfersCurrency
+        required: true
+      - in: formData
+        name: title
+        type: string
+        maxLength: 112
+        description: Transfer title, example "payment to invoice number 1/2018". Note that maximum allowed length is reduced in case additionalRemittanceInformation attribute is used. In certain cases title may be shortened by cutting end of title.
+      - in: formData
+        name: country
+        type: string
+        description: >
+          Two letter code of supported destination country.
+          Note: check list of destination countries enabled on your account.
+        required: true
+        enum:
+          - KR
+          - CN
+          - AU
+          - CA
+          - JP
+          - NZ
+          - SG
+          - TW
+          - NG
+          - GH
+          - VN
+          - IN
+          - ET
+          - ZA
+          - GM
+          - GN
+          - AR
+          - BD
+          - CL
+          - ID
+          - MX
+          - MY
+          - PY
+          - QA
+          - TH
+          - UY
+          - LK
+      - in: formData
+        name: swift
+        type: string
+        maxLength: 11
+        description: SWIFT code of beneficiary bank or financial institution
+        required: true
+        pattern: /^[A-Z]{6}[A-Z0-9]{2}([A-Z0-9]{3})?$/
+      - in: formData
+        name: accountNumber
+        type: string
+        description: Destination account number.
+        required: true
+      - in: formData
+        name: recipientName
+        type: string
+        maxLength: 90
+        required: true
+        description: Destination account owner, example "Adventure Works Ltd"
+      - in: formData
+        name: recipientAddress
+        type: string
+        maxLength: 90
+        required: true
+        description: |
+          Destination account owner address, example "14 Tottenham Court Road, London, England, W1T 1JY".
+
+          Note: money transfers to China requires province code in the recipient address field compliant with ISO 3166-2, for example `CN-HK` for Hong Kong.
+      - in: formData
+        name: faster
+        type: boolean
+        description: Enables usually more expensive, but faster transfer. Availability may vary across currencies and destinations. Consult business documentation and agreement to determine availability, conditions and associated cost.
+        default: false
+      - in: formData
+        name: transferCostInstruction
+        type: string
+        description: |
+          - `RECEIVER_VOLUME` means recipient will receive exact amount provided in volume attribute.
+          - `SENDER_VOLUME` means that volume attribute specifies sent volume (for certain transfers there are no guarantee that volume received is equal to volume sent, because extra charges may be deducted from transferred volume).
+
+          Notes:
+            - `transferCostInstruction` may have impact on transfer fee.
+            - It is possible that for certain countries and currencies we are not able to send transfer with RECEIVER_VOLUME option. In such case, requests with `RECEIVER_VOLUME` option will be rejected.
+            - Business documentation specifies fees and possible transfer instructions for various transfer destinations.
+
+        enum:
+          - SENDER_VOLUME
+          - RECEIVER_VOLUME
+        required: true
+      - in: formData
+        name: transferPurpose
+        type: string
+        description: |
+          The purpose of transfer
+        enum:
+          - BILLS
+          - COMMODITY
+          - DONATION_ENTITY
+          - DONATION_PERSON
+          - FAMILY
+          - PREPAYMENT
+          - SERVICE
+          - PROPERTY
+          - OTHER
+        required: true
+      - in: formData
+        name: sourceOfIncome
+        type: string
+        description: |
+          Source of funds.
+        enum:
+          - SALARY
+          - SAVINGS
+          - SCHOLARSHIP
+          - INSURANCE
+          - INVESTMENTS
+          - DONATION
+          - BUSINESS_INCOME
+          - OTHER
+        required: true
+      - in: formData
+        name: additionalRemittanceInformation
+        type: string
+        maxLength: 106
+        pattern: /^([A-Za-z0-9 _.\-]+),([A-Za-zÀ-ž0-9 _.\-]+);(A|I):([A-Za-z0-9 _.\-]+)$/
+        description: |
+          Extra information about requested transfer, reserved for certain API clients and cases. Please fill in only when requested and in the form you will receive in separate document. Endpoint will return error if filled in when not required or incorrectly filled.
+      responses:
+        200:
+          description: Response indicates whether transfer was accepted and associated fees are provided. If success set to false, examine errors object.
+          schema:
+            $ref: '#/definitions/NewTransferResponse'
+          examples:
+            application/json:
+              {
+                "success": true,
+                "duplicate": false,
+                "result": {
+                    "feeAmount": "0.23",
+                    "feeCurrency": "EUR",
+                    "transferId": "1f38762e-48e7-447d-afea-85211acb7d0e",
+                    "transferType":"SEPA"
+                }
+              }
+      x-code-samples:
+        - lang: Shell
+          source: |
+            apikey="<your API-KEY>"
+
+            server=https://api.walutomat.pl
+            endpoint=/api/v2.0.0/transfer/noniban
+            timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+            params="dryRun=false&submitId=mytest2081023002&volume=100.00&currency=EUR&title=mytest23002&swift=ICBKCNBJBJM&accountNumber=559970269249&recipientName=Kowalski&country=CN&recipientAddress=Hongkong+CN-HK&transferCostInstruction=SENDER_VOLUME&transferPurpose=PREPAYMENT&sourceOfIncome=SAVINGS"
+
+            toSign=$timestamp$endpoint$params
+
+            sign=`echo -n "$toSign" | openssl dgst -sha256 -binary -sign /path/to/private.key | openssl enc -A -base64`
+
+            curl -i \
+                 -d $params \
+                 -H "X-API-Key: $apikey" \
+                 -H "X-API-Timestamp: $timestamp" \
+                 -H "X-API-Signature: $sign" \
+                 -H "Content-Type: application/x-www-form-urlencoded" \
+                 -X POST "$server$endpoint"
+
+      x-c1-roles: [admin, transfer_noniban]
+      x-c1-logResponse: true

@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "description": "Walutomat MCP Server - Model Context Protocol",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "build": "npx tsc",
+    "generate": "npx swagger-typescript-api generate --extract-enums -o src/Walutomat -p v2_0_0.yaml"
   },
   "keywords": [
     "mcp",
@@ -16,10 +18,12 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "uuid": "^11.1.0",
     "zod": "^3.25.36"
   },
   "devDependencies": {
     "@types/node": "^22.15.27",
+    "swagger-typescript-api": "^13.1.3",
     "typescript": "^5.8.3"
   }
 }
