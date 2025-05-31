@@ -6,10 +6,10 @@ import * as fs from 'fs';
 import * as uuid from 'uuid';
 import { z } from "zod";
 
-const baseUrl = 'https://api.walutomat.pl';
-const apiKey = `${process.env.WT_API_KEY}`;
-const privateKey = fs.readFileSync('./private.key', 'utf8');
-const dryRun = true; 
+const baseUrl = process.env.WALUTOMAT_API_URL!;
+const apiKey = process.env.WALUTOMAT_API_KEY!;
+const privateKey = fs.readFileSync(process.env.WALUTOMAT_KEY_PATH!, 'utf8');
+const dryRun = process.env.WALUTOMAT_DRY_RUN || 'true'; 
 
 if (!apiKey) {
   throw new Error("Walutomat API key is missing");
@@ -20,44 +20,6 @@ const server = new McpServer({
   version: "1.0.0"
 });
 
-async function wtApi(method: "POST" | "GET", endpoint: string, query?: any, shouldSign: boolean = false) {
-  var params = '';
-  if (query) {
-    var nonEmptyParams: any = {};
-    for (const k in query) {
-      if (query[k]) {
-        nonEmptyParams[k] = query[k]
-      }
-    }
-    params = nonEmptyParams ? new URLSearchParams(nonEmptyParams).toString() : ''
-  }
-  const _url = `${baseUrl}${endpoint}${method == 'GET' ? `?${params}` : ''}`;
-
-  const signHeaders = shouldSign ? sign(endpoint, params) : {}
-
-  const response = await fetch(_url, {
-    method,
-    body: method == 'POST' ? params : undefined,
-    headers: {
-      'X-API-Key': apiKey,
-      ...(method == 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
-      ...signHeaders,
-    },
-  });
-  return await response.json();
-}
-
-function sign(endpoint: string, params: string) {
-  const timestamp = new Date().toISOString();
-  const toSign = timestamp + endpoint + params;
-  const sign = crypto.createSign('SHA256');
-  sign.update(toSign);
-  const signature = sign.sign(privateKey, 'base64');
-  return {
-    'X-API-Timestamp': timestamp,
-    'X-API-Signature': signature,
-  };
-}
 
 server.tool("account-balance", 
   "Returns wallet balance",
@@ -68,6 +30,7 @@ server.tool("account-balance",
     }
   }
 );
+
 
 server.tool("account-history", 
   "Returns wallet history - operations recorded on the wallet",
@@ -175,6 +138,46 @@ server.tool("market-active-orders",
   }
 }
 );
+
+
+async function wtApi(method: "POST" | "GET", endpoint: string, query?: any, shouldSign: boolean = false) {
+  var params = '';
+  if (query) {
+    var nonEmptyParams: any = {};
+    for (const k in query) {
+      if (query[k]) {
+        nonEmptyParams[k] = query[k]
+      }
+    }
+    params = nonEmptyParams ? new URLSearchParams(nonEmptyParams).toString() : ''
+  }
+  const _url = `${baseUrl}${endpoint}${method == 'GET' ? `?${params}` : ''}`;
+
+  const signHeaders = shouldSign ? sign(endpoint, params) : {}
+
+  const response = await fetch(_url, {
+    method,
+    body: method == 'POST' ? params : undefined,
+    headers: {
+      'X-API-Key': apiKey,
+      ...(method == 'POST' ? { 'Content-Type': 'application/x-www-form-urlencoded' } : {}),
+      ...signHeaders,
+    },
+  });
+  return await response.json();
+}
+
+function sign(endpoint: string, params: string) {
+  const timestamp = new Date().toISOString();
+  const toSign = timestamp + endpoint + params;
+  const sign = crypto.createSign('SHA256');
+  sign.update(toSign);
+  const signature = sign.sign(privateKey, 'base64');
+  return {
+    'X-API-Timestamp': timestamp,
+    'X-API-Signature': signature,
+  };
+}
 
 
 // Start receiving messages on stdin and sending messages on stdout
